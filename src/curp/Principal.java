@@ -172,7 +172,7 @@ public class Principal extends javax.swing.JFrame {
             }
         });
 
-        jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder("Errores"));
+        jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder(null));
 
         jTextArea1.setColumns(20);
         jTextArea1.setFont(new java.awt.Font("Helvetica Neue", 0, 14)); // NOI18N
