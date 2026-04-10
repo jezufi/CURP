@@ -15,9 +15,9 @@ public class ConexionPool {
     static {
         HikariConfig config = new HikariConfig();
         // Configura tus datos aquí
-        config.setJdbcUrl("jdbc:postgresql://localhost:5432/tu_base");
+        config.setJdbcUrl("jdbc:postgresql://localhost:5432/CURP");
         config.setUsername("postgres");
-        config.setPassword("tu_password");
+        config.setPassword("admindie");
 
         // --- OPTIMIZACIONES CRÍTICAS ---
         // Esto hace que los 8,000 registros viajen en paquetes súper eficientes

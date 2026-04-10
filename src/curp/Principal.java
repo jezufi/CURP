@@ -19,7 +19,13 @@ import java.io.FileInputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+
 import java.awt.Color;
+import java.util.List;
 
 public class Principal extends javax.swing.JFrame {
 
@@ -29,6 +35,62 @@ public class Principal extends javax.swing.JFrame {
     public Principal() {
         initComponents();
     }
+    
+    List <String > listaCurps;
+    
+    public void procesarConsultasRenapo() {
+        
+
+
+    //String sqlInsert = "INSERT INTO consulta (id_consulta,session_id,curp,nombres,apellido1,apellido2,status_oper,message,tipo_error,codigo_error,fecha_consulta "
+      //      + " hora_consulta,status_curp) VALUES (?, ?, ?,?, ?, ?,?, ?, ?, ?, cuurent_date,current_time,?)";
+    
+     String sqlInsert = "INSERT INTO consulta (session_id,curp,nombres,apellido1,apellido2,status_oper,message,tipo_error,codigo_error,fecha_consulta "
+            + " hora_consulta,status_curp) VALUES ( 'session','VECL520825MTLGRS09','nombre', 'ape1','ape2','st', 'mess', 'err', 'cod', cuurent_date,current_time,'sd')";
+    
+    // 1. Pedimos una conexión al Pool
+    try (Connection con = ConexionPool.getConnection();
+         PreparedStatement pstmt = con.prepareStatement(sqlInsert)) {
+        
+        con.setAutoCommit(false); // Para controlar la carga masiva
+        int contadorLote = 0;
+
+        for (String curp : listaCurps) {
+            try {
+                // 2. Consultar a RENAPO (Aquí va tu lógica de conexión a su API)
+                //String respuestaRenapo = consultarAPI(curp); 
+                
+                // 3. Preparar el insert con la respuesta recibida
+                //pstmt.setString(1, curp);
+                //pstmt.setString(2, "");
+                //pstmt.setTimestamp(3, new java.sql.Timestamp(System.currentTimeMillis()));
+                
+                pstmt.addBatch();
+                contadorLote++;
+
+                // 4. Cada 100 registros, mandamos a la base de datos (Checkpoint)
+                if (contadorLote % 100 == 0) {
+                    pstmt.executeBatch();
+                    con.commit(); // Aseguramos lo que ya llevamos consultado
+                    System.out.println("Progreso: " + contadorLote + " procesados...");
+                }
+
+            } catch (Exception e) {
+                System.err.println("Error consultando CURP " + curp + ": " + e.getMessage());
+                // Si una falla, continuamos con la siguiente
+            }
+        }
+
+        // 5. Mandar los últimos registros que quedaron
+        pstmt.executeBatch();
+        con.commit();
+        System.out.println("¡Proceso de 8,000 registros finalizado con éxito!");
+
+    } catch (SQLException e) {
+        System.err.println("Error crítico de base de datos: " + e.getMessage());
+    }
+}
+    
 
     public void leerExcel(String ruta) {
 
@@ -58,6 +120,7 @@ public class Principal extends javax.swing.JFrame {
                             if (!esCurpValida(valor)) {
                                 incorrectos++;
                                 errores += "Error en la curp numero " + linea + " " + valor + "\n";
+                                listaCurps.add(valor);
                                 //System.out.println("Fila " + (i + 1) + " - CURP encontrada: " + valor);
                             }//fin if que revisa que es un curp valdia
                             correctos++;
@@ -73,6 +136,8 @@ public class Principal extends javax.swing.JFrame {
             if (incorrectos <= 0) {
                 jTextArea1.setForeground(Color.GREEN);
                 jTextArea1.append("Se procesaroon correctamente " + correctos + " CURPS");
+                
+                
             }// fin if correctos 
             else {
                 jTextArea1.setForeground(Color.RED);
@@ -172,7 +237,7 @@ public class Principal extends javax.swing.JFrame {
             }
         });
 
-        jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder(null));
+        jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder("Errores"));
 
         jTextArea1.setColumns(20);
         jTextArea1.setFont(new java.awt.Font("Helvetica Neue", 0, 14)); // NOI18N
