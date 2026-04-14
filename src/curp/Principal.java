@@ -40,10 +40,18 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import java.io.ByteArrayInputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.w3c.dom.NodeList;
 //fin para RENAPO
+
+//para TXT
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.io.IOException;
+import java.sql.ResultSet;
 
 public class Principal extends javax.swing.JFrame {
 
@@ -51,6 +59,9 @@ public class Principal extends javax.swing.JFrame {
 
     public Principal() {
         initComponents();
+
+        jDateChooser1.setDate(new Date());
+
     }
 
     public void procesarConsultasRenapo() throws AxisFault, InterruptedException {
@@ -64,59 +75,14 @@ public class Principal extends javax.swing.JFrame {
         Options options = serviceClient.getOptions();
         EndpointReference targetEPR = new EndpointReference("https://websdes.curp.gob.mx/WebServicesConsulta/services/ConsultaPorCurpServices?wsdl");
         options.setTo(targetEPR);
-        
+
         int contador = 0;
 
-       /* try (Connection con = ConexionPool.getConnection(); PreparedStatement pstmt = con.prepareStatement(sqlInsert)) {
-
-            con.setAutoCommit(false); 
-            
-
-            for (String curp : listaCurps) {
-
-                String regreso = consultarCurp(contador + 1, curp.trim(), serviceClient);
-
-
-                pstmt.setString(1, this.getSessionID(regreso));
-                pstmt.setString(2, this.getCurp(regreso)); // Siempre usa trim() por seguridad
-                pstmt.setString(3, this.getNombres(regreso));
-                pstmt.setString(4, this.getApellido1(regreso));
-                pstmt.setString(5, this.getApellido2(regreso));
-                pstmt.setString(6, this.getStatusOper(regreso));
-                pstmt.setString(7, this.getMessage(regreso));
-                pstmt.setString(8, this.getTipoError(regreso));
-                pstmt.setString(9, this.getCodigoError(regreso));
-                pstmt.setString(10, this.getStatusCurp(regreso));
-
-                pstmt.addBatch();
-                contador++;
-
-                /* Mandamos paquetes de 100 en 100
-                if (contador % 100 == 0) {
-                    pstmt.executeBatch();
-                    con.commit();
-                }
-                Thread.sleep(500);
-            }
-
-            // El último empujón para los que sobraron
-            pstmt.executeBatch();
-            con.commit();
-                
-
-
-        } catch (SQLException e) {
-            // Por si algo más sale mal, esto te dirá la verdad
-            SQLException nextE = e.getNextException();
-            System.err.println("Causa real: " + (nextE != null ? nextE.getMessage() : e.getMessage()));
-        }*/
-       
-       for (String curp : listaCurps) {
+        for (String curp : listaCurps) {
 
             String regreso = consultarCurp(contador + 1, curp.trim(), serviceClient);
 
-            try (Connection con = ConexionPool.getConnection();
-                 PreparedStatement pstmt = con.prepareStatement(sqlInsert)) {
+            try (Connection con = ConexionPool.getConnection(); PreparedStatement pstmt = con.prepareStatement(sqlInsert)) {
 
                 pstmt.setString(1, this.getSessionID(regreso));
                 pstmt.setString(2, this.getCurp(regreso));
@@ -136,6 +102,60 @@ public class Principal extends javax.swing.JFrame {
             }
             contador++;
             Thread.sleep(500);
+        }
+    }//fin ProcesarConsultaRenapo
+
+    public void generarReporteTxt() {
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        String fechaFormat = sdf.format(jDateChooser1.getDate());
+
+        StringBuilder sb = new StringBuilder();
+
+        String sql = "SELECT * FROM consulta where fecha_consulta='" + fechaFormat + "'";
+        
+        System.out.println(sql);
+
+        try (Connection con = ConexionPool.getConnection(); PreparedStatement pstmt = con.prepareStatement(sql); ResultSet rs = pstmt.executeQuery()) {
+
+            while (rs.next()) {
+                sb.append("CURP: ").append(rs.getString("curp")).append(" | ");
+                sb.append("Nombre: ").append(rs.getString("nombres")).append(" | ");
+                sb.append("Status: ").append(rs.getString("status_oper")).append("\n");
+            }
+
+            // Llamamos al método de guardar que creamos arriba
+            guardarConsultaEnTxt(sb.toString());
+
+        } catch (SQLException e) {
+            System.err.println("Error al obtener datos: " + e.getMessage());
+        }
+    }//finGenerarReporteTxt
+
+    public void guardarConsultaEnTxt(String contenido) {
+        // 1. Crear el selector de archivos
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Seleccione dónde guardar el reporte");
+
+        // Opcional: Sugerir un nombre de archivo por defecto
+        fileChooser.setSelectedFile(new File("reporte_consultas.txt"));
+
+        // 2. Mostrar la ventana de "Guardar"
+        int seleccion = fileChooser.showSaveDialog(null);
+
+        if (seleccion == JFileChooser.APPROVE_OPTION) {
+            File archivo = fileChooser.getSelectedFile();
+
+            // 3. Escribir el archivo
+            try (FileWriter fw = new FileWriter(archivo); PrintWriter pw = new PrintWriter(fw)) {
+
+                pw.print(contenido);
+
+                javax.swing.JOptionPane.showMessageDialog(null, "Archivo guardado exitosamente en: " + archivo.getAbsolutePath());
+
+            } catch (Exception e) {
+                javax.swing.JOptionPane.showMessageDialog(null, "Error al guardar el archivo: " + e.getMessage());
+            }
         }
     }
 
@@ -284,75 +304,75 @@ public class Principal extends javax.swing.JFrame {
     }//fin metdo
 
     public String getCurp(String xml) {
-       try {
-        Document doc = DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder()
-                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
 
-        NodeList nodeList = doc.getElementsByTagName("CURP");
+            NodeList nodeList = doc.getElementsByTagName("CURP");
 
-        if (nodeList.getLength() > 0) {
-            return nodeList.item(0).getTextContent();
+            if (nodeList.getLength() > 0) {
+                return nodeList.item(0).getTextContent();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-    return null;
+        return null;
     }//fin metdo curp
 
     public String getNombres(String xml) {
-    try {
-        Document doc = DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder()
-                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
 
-        NodeList nodeList = doc.getElementsByTagName("nombres");
+            NodeList nodeList = doc.getElementsByTagName("nombres");
 
-        if (nodeList.getLength() > 0) {
-            return nodeList.item(0).getTextContent();
+            if (nodeList.getLength() > 0) {
+                return nodeList.item(0).getTextContent();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-    return null;
-}//fin getNombres
+        return null;
+    }//fin getNombres
 
     public String getApellido1(String xml) {
         try {
-        Document doc = DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder()
-                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
 
-        NodeList nodeList = doc.getElementsByTagName("apellido1");
+            NodeList nodeList = doc.getElementsByTagName("apellido1");
 
-        if (nodeList.getLength() > 0) {
-            return nodeList.item(0).getTextContent();
+            if (nodeList.getLength() > 0) {
+                return nodeList.item(0).getTextContent();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-    return null;
+        return null;
     }//fin metdo apellido1
 
     public String getApellido2(String xml) {
-       try {
-        Document doc = DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder()
-                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
 
-        NodeList nodeList = doc.getElementsByTagName("apellido2");
+            NodeList nodeList = doc.getElementsByTagName("apellido2");
 
-        if (nodeList.getLength() > 0) {
-            return nodeList.item(0).getTextContent();
+            if (nodeList.getLength() > 0) {
+                return nodeList.item(0).getTextContent();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-    return null;
+        return null;
     }//fin metdo apellido1
 
     public String getStatusOper(String xml) {
@@ -421,20 +441,20 @@ public class Principal extends javax.swing.JFrame {
 
     public String getStatusCurp(String xml) {
         try {
-        Document doc = DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder()
-                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
 
-        NodeList nodeList = doc.getElementsByTagName("statusCurp");
+            NodeList nodeList = doc.getElementsByTagName("statusCurp");
 
-        if (nodeList.getLength() > 0) {
-            return nodeList.item(0).getTextContent();
+            if (nodeList.getLength() > 0) {
+                return nodeList.item(0).getTextContent();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-    return null;
+        return null;
     }//fin metdo statusCurp
 
     //fin meotods REANPO
@@ -457,6 +477,10 @@ public class Principal extends javax.swing.JFrame {
         jScrollPane1 = new javax.swing.JScrollPane();
         jTextArea1 = new javax.swing.JTextArea();
         jButton3 = new javax.swing.JButton();
+        jPanel3 = new javax.swing.JPanel();
+        jDateChooser1 = new com.toedter.calendar.JDateChooser();
+        jLabel1 = new javax.swing.JLabel();
+        jButton4 = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -508,25 +532,38 @@ public class Principal extends javax.swing.JFrame {
                 .addContainerGap())
         );
 
+        jButton3.setText("Procesar");
+        jButton3.setEnabled(false);
+        jButton3.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton3ActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(17, 17, 17)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(jLabel3, javax.swing.GroupLayout.DEFAULT_SIZE, 433, Short.MAX_VALUE)
-                            .addComponent(jTextField1))
-                        .addGap(18, 18, 18)
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(jButton2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                        .addGap(17, 17, 17)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(jLabel3, javax.swing.GroupLayout.DEFAULT_SIZE, 433, Short.MAX_VALUE)
+                                    .addComponent(jTextField1))
+                                .addGap(18, 18, 18)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(jButton2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(jLabel2)
+                                .addGap(0, 0, Short.MAX_VALUE))
+                            .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jLabel2)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 111, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
@@ -547,29 +584,59 @@ public class Principal extends javax.swing.JFrame {
                         .addComponent(jButton2)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(27, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(9, Short.MAX_VALUE))
         );
 
-        jButton3.setText("Procesar");
-        jButton3.setEnabled(false);
-        jButton3.addActionListener(new java.awt.event.ActionListener() {
+        jPanel3.setBorder(javax.swing.BorderFactory.createTitledBorder("Reportes"));
+
+        jDateChooser1.setDateFormatString("yyyy-mm-dd");
+
+        jLabel1.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jLabel1.setText("Elegir fecha");
+
+        jButton4.setText("Generar");
+        jButton4.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton3ActionPerformed(evt);
+                jButton4ActionPerformed(evt);
             }
         });
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel1)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, 219, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(jButton4)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jButton4)
+                    .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jLabel1)))
+                .addContainerGap(7, Short.MAX_VALUE))
+        );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addContainerGap()
-                        .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 111, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -577,9 +644,9 @@ public class Principal extends javax.swing.JFrame {
             .addGroup(layout.createSequentialGroup()
                 .addGap(14, 14, 14)
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
-                .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(18, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(14, Short.MAX_VALUE))
         );
 
         pack();
@@ -625,6 +692,11 @@ public class Principal extends javax.swing.JFrame {
 
     }//GEN-LAST:event_jButton3ActionPerformed
 
+    private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
+        generarReporteTxt();
+
+    }//GEN-LAST:event_jButton4ActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -664,10 +736,14 @@ public class Principal extends javax.swing.JFrame {
     private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton3;
+    private javax.swing.JButton jButton4;
+    private com.toedter.calendar.JDateChooser jDateChooser1;
+    private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTextArea jTextArea1;
     private javax.swing.JTextField jTextField1;
