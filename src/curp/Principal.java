@@ -28,65 +28,116 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
+//para RENAPO
+import javax.xml.namespace.QName;
+
+import org.apache.axis2.AxisFault;
+import org.apache.axis2.addressing.EndpointReference;
+import org.apache.axis2.client.Options;
+import org.apache.axis2.rpc.client.RPCServiceClient;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import java.io.ByteArrayInputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.w3c.dom.NodeList;
+//fin para RENAPO
+
 public class Principal extends javax.swing.JFrame {
 
-    /**
-     * Creates new form Principal
-     */
+    List<String> listaCurps = new ArrayList();
+
     public Principal() {
         initComponents();
     }
-    
-    List <String > listaCurps=new ArrayList();
-    
-    
-    public void procesarConsultasRenapo() {
-    String sqlInsert = "INSERT INTO public.consulta (session_id, curp, nombres, apellido1, apellido2, "
-                     + "status_oper, message, tipo_error, codigo_error, fecha_consulta, "
-                     + "hora_consulta, status_curp) "
-                     + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, current_date, current_time, ?)";
 
-    try (Connection con = ConexionPool.getConnection();
-         PreparedStatement pstmt = con.prepareStatement(sqlInsert)) {
+    public void procesarConsultasRenapo() throws AxisFault, InterruptedException {
+        String sqlInsert = "INSERT INTO public.consulta (session_id, curp, nombres, apellido1, apellido2, "
+                + "status_oper, message, tipo_error, codigo_error, fecha_consulta, "
+                + "hora_consulta, status_curp) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, current_date, current_time, ?)";
+
+        RPCServiceClient serviceClient = new RPCServiceClient();
+
+        Options options = serviceClient.getOptions();
+        EndpointReference targetEPR = new EndpointReference("https://websdes.curp.gob.mx/WebServicesConsulta/services/ConsultaPorCurpServices?wsdl");
+        options.setTo(targetEPR);
         
-        con.setAutoCommit(false); // Activamos el modo veloz
         int contador = 0;
 
-        for (String curp : listaCurps) {
-            pstmt.setString(1, "SES-001");
-            pstmt.setString(2, curp.trim()); // Siempre usa trim() por seguridad
-            pstmt.setString(3, "NOMBRE_API");
-            pstmt.setString(4, "APE1");
-            pstmt.setString(5, "APE2");
-            pstmt.setString(6, "EXITOSO");
-            pstmt.setString(7, "PROCESADO CORRECTAMENTE");
-            pstmt.setString(8, "NINGUNO");
-            pstmt.setString(9, "0");
-            pstmt.setString(10, "A");
+       /* try (Connection con = ConexionPool.getConnection(); PreparedStatement pstmt = con.prepareStatement(sqlInsert)) {
 
-            pstmt.addBatch();
-            contador++;
+            con.setAutoCommit(false); 
+            
 
-            // Mandamos paquetes de 100 en 100
-            if (contador % 100 == 0) {
-                pstmt.executeBatch();
-                con.commit();
+            for (String curp : listaCurps) {
+
+                String regreso = consultarCurp(contador + 1, curp.trim(), serviceClient);
+
+
+                pstmt.setString(1, this.getSessionID(regreso));
+                pstmt.setString(2, this.getCurp(regreso)); // Siempre usa trim() por seguridad
+                pstmt.setString(3, this.getNombres(regreso));
+                pstmt.setString(4, this.getApellido1(regreso));
+                pstmt.setString(5, this.getApellido2(regreso));
+                pstmt.setString(6, this.getStatusOper(regreso));
+                pstmt.setString(7, this.getMessage(regreso));
+                pstmt.setString(8, this.getTipoError(regreso));
+                pstmt.setString(9, this.getCodigoError(regreso));
+                pstmt.setString(10, this.getStatusCurp(regreso));
+
+                pstmt.addBatch();
+                contador++;
+
+                /* Mandamos paquetes de 100 en 100
+                if (contador % 100 == 0) {
+                    pstmt.executeBatch();
+                    con.commit();
+                }
+                Thread.sleep(500);
             }
-        }
-        
-        // El último empujón para los que sobraron
-        pstmt.executeBatch();
-        con.commit();
-        
-        javax.swing.JOptionPane.showMessageDialog(null, "Procesados con éxito: " + contador);
 
-    } catch (SQLException e) {
-        // Por si algo más sale mal, esto te dirá la verdad
-        SQLException nextE = e.getNextException();
-        System.err.println("Causa real: " + (nextE != null ? nextE.getMessage() : e.getMessage()));
+            // El último empujón para los que sobraron
+            pstmt.executeBatch();
+            con.commit();
+                
+
+
+        } catch (SQLException e) {
+            // Por si algo más sale mal, esto te dirá la verdad
+            SQLException nextE = e.getNextException();
+            System.err.println("Causa real: " + (nextE != null ? nextE.getMessage() : e.getMessage()));
+        }*/
+       
+       for (String curp : listaCurps) {
+
+            String regreso = consultarCurp(contador + 1, curp.trim(), serviceClient);
+
+            try (Connection con = ConexionPool.getConnection();
+                 PreparedStatement pstmt = con.prepareStatement(sqlInsert)) {
+
+                pstmt.setString(1, this.getSessionID(regreso));
+                pstmt.setString(2, this.getCurp(regreso));
+                pstmt.setString(3, this.getNombres(regreso));
+                pstmt.setString(4, this.getApellido1(regreso));
+                pstmt.setString(5, this.getApellido2(regreso));
+                pstmt.setString(6, this.getStatusOper(regreso));
+                pstmt.setString(7, this.getMessage(regreso));
+                pstmt.setString(8, this.getTipoError(regreso));
+                pstmt.setString(9, this.getCodigoError(regreso));
+                pstmt.setString(10, this.getStatusCurp(regreso));
+
+                pstmt.executeUpdate(); // 🔥 inserta inmediato
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            contador++;
+            Thread.sleep(500);
+        }
     }
-}
-    
 
     public void leerExcel(String ruta) {
 
@@ -98,53 +149,52 @@ public class Principal extends javax.swing.JFrame {
         try (FileInputStream fis = new FileInputStream(new File(ruta))) {
             Workbook libro = new XSSFWorkbook(fis);
             Sheet hoja = libro.getSheetAt(0);
-            
-            if(verificarEncabezado(hoja)){
 
-            int primeraFilaALeer = 1;
-            int ultimaFila = hoja.getLastRowNum();
+            if (verificarEncabezado(hoja)) {
 
-            for (int i = primeraFilaALeer; i <= ultimaFila; i++) {
-                Row fila = hoja.getRow(i);
+                int primeraFilaALeer = 1;
+                int ultimaFila = hoja.getLastRowNum();
 
-                if (fila != null) {
+                for (int i = primeraFilaALeer; i <= ultimaFila; i++) {
+                    Row fila = hoja.getRow(i);
 
-                    for (Cell celda : fila) {
-                        if (celda.getCellType() == CellType.STRING) {
-                            String valor = celda.getStringCellValue().trim();
-                            System.out.println(valor);
-                            if (!esCurpValida(valor)) {
-                                incorrectos++;
-                                errores += "Error en la curp numero " + linea + " " + valor + "\n";
-                                
-                                //System.out.println("Fila " + (i + 1) + " - CURP encontrada: " + valor);
-                            }//fin if que revisa que es un curp valdia
-                            listaCurps.add(valor);
-                            correctos++;
-                        }// fin if de celda vacia
-                    }//fin for que recorre celda
-                }//fin if de la celda null
-                linea++;
-            }//fin for
-            libro.close();
+                    if (fila != null) {
 
-            System.out.println("correcto " + correctos + " incorrecto " + incorrectos);
+                        for (Cell celda : fila) {
+                            if (celda.getCellType() == CellType.STRING) {
+                                String valor = celda.getStringCellValue().trim();
+                                System.out.println(valor);
+                                if (!esCurpValida(valor)) {
+                                    incorrectos++;
+                                    errores += "Error en la curp numero " + linea + " " + valor + "\n";
 
-            if (incorrectos <= 0) {
-                jTextArea1.setForeground(Color.GREEN);
-                jTextArea1.append("Se procesaroon correctamente " + correctos + " CURPS");
-                jButton3.setEnabled(true);
-                
-            }// fin if correctos 
-            else {
-                jTextArea1.setForeground(Color.RED);
-                jTextArea1.append(errores);
+                                    //System.out.println("Fila " + (i + 1) + " - CURP encontrada: " + valor);
+                                }//fin if que revisa que es un curp valdia
+                                listaCurps.add(valor);
+                                correctos++;
+                            }// fin if de celda vacia
+                        }//fin for que recorre celda
+                    }//fin if de la celda null
+                    linea++;
+                }//fin for
+                libro.close();
 
-            }//fin if incorrectos
-            
+                System.out.println("correcto " + correctos + " incorrecto " + incorrectos);
+
+                if (incorrectos <= 0) {
+                    jTextArea1.setForeground(Color.GREEN);
+                    jTextArea1.append("Se procesaroon correctamente " + correctos + " CURPS");
+                    jButton3.setEnabled(true);
+
+                }// fin if correctos 
+                else {
+                    jTextArea1.setForeground(Color.RED);
+                    jTextArea1.append(errores);
+
+                }//fin if incorrectos
+
             }//fin if que no es encabezado
-            
-            else{
+            else {
                 jTextArea1.setForeground(Color.RED);
                 jTextArea1.append("EL ARCHIVO NO TIENE EL ENCABEZADO CORRECTO");
             }
@@ -167,15 +217,15 @@ public class Principal extends javax.swing.JFrame {
 
             if (celdaTitulo != null && celdaTitulo.getCellType() == CellType.STRING) {
                 String textoCabecera = celdaTitulo.getStringCellValue().trim();
-                    System.out.println("cabecera "+ textoCabecera);
+                System.out.println("cabecera " + textoCabecera);
                 // Verificar si contiene la frase exacta
                 if (!textoCabecera.equals("SUPERVIVENCIA CURP OPEO")) {
                     flag = false;
                 }
             }
+        } else {
+            flag = false;
         }
-        
-        else{flag=false;}
         return flag;
     }//fin verificarEncabezado
 
@@ -187,8 +237,207 @@ public class Principal extends javax.swing.JFrame {
         Matcher emparejador = patron.matcher(curp.toUpperCase()); // Convertimos a mayúsculas por si acaso
 
         return emparejador.matches();
-    }
+    }//Fin esCurpValida
 
+    //metodos para RENAPO
+    public String consultarCurp(int i, String s_curp, RPCServiceClient serviceClient) throws AxisFault {
+
+        DatosConsultaCurp datos = new DatosConsultaCurp();
+
+        datos.setCveCurp(s_curp);
+// Generate curp 
+        QName opSetAlta = new QName("http://services.wserv.ecurp.dgti.segob.gob.mx", "consultarPorCurp");
+        Object[] altaServiceArgs = new Object[]{datos};
+
+        Class<?>[] returnTypes = new Class[]{String.class};
+        Object[] response = serviceClient.invokeBlocking(opSetAlta, altaServiceArgs, returnTypes);
+        String result = (String) response[0];
+        if (result == null) {
+            System.out.println("Consulta Curp Service didn't initialize!");
+            return "";
+        }
+// Displaying the result 
+        System.out.println("Resultado Consulta Curp por Curp: consultarPorCurp:" + result);
+//Confirm operation 
+        QName optGetConfirm = new QName("http://services.wserv.ecurp.dgti.segob.gob.mx", "getConfirm");
+        Object[] opGetConfirmArgs = new Object[]{getSessionID(result), "OK"};
+        serviceClient.invokeRobust(optGetConfirm, opGetConfirmArgs);
+        System.out.println("Operacion Confirmada. " + i);
+
+        return result;
+    }//fin consultar curp
+
+    public String getSessionID(String xml) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element root = doc.getDocumentElement();
+
+            return root.getAttribute("SessionID");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }//fin metdo
+
+    public String getCurp(String xml) {
+       try {
+        Document doc = DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder()
+                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+        NodeList nodeList = doc.getElementsByTagName("CURP");
+
+        if (nodeList.getLength() > 0) {
+            return nodeList.item(0).getTextContent();
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return null;
+    }//fin metdo curp
+
+    public String getNombres(String xml) {
+    try {
+        Document doc = DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder()
+                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+        NodeList nodeList = doc.getElementsByTagName("nombres");
+
+        if (nodeList.getLength() > 0) {
+            return nodeList.item(0).getTextContent();
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return null;
+}//fin getNombres
+
+    public String getApellido1(String xml) {
+        try {
+        Document doc = DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder()
+                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+        NodeList nodeList = doc.getElementsByTagName("apellido1");
+
+        if (nodeList.getLength() > 0) {
+            return nodeList.item(0).getTextContent();
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return null;
+    }//fin metdo apellido1
+
+    public String getApellido2(String xml) {
+       try {
+        Document doc = DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder()
+                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+        NodeList nodeList = doc.getElementsByTagName("apellido2");
+
+        if (nodeList.getLength() > 0) {
+            return nodeList.item(0).getTextContent();
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return null;
+    }//fin metdo apellido1
+
+    public String getStatusOper(String xml) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element root = doc.getDocumentElement();
+
+            return root.getAttribute("statusOper");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }//fin metdo statusOper
+
+    public String getMessage(String xml) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element root = doc.getDocumentElement();
+
+            return root.getAttribute("message");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }//fin metdo message
+
+    public String getTipoError(String xml) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element root = doc.getDocumentElement();
+
+            return root.getAttribute("TipoError");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }//fin metdo tipoError
+
+    public String getCodigoError(String xml) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element root = doc.getDocumentElement();
+
+            return root.getAttribute("CodigoError");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }//fin metdo codigoError
+
+    public String getStatusCurp(String xml) {
+        try {
+        Document doc = DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder()
+                .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+        NodeList nodeList = doc.getElementsByTagName("statusCurp");
+
+        if (nodeList.getLength() > 0) {
+            return nodeList.item(0).getTextContent();
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return null;
+    }//fin metdo statusCurp
+
+    //fin meotods REANPO
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -365,10 +614,15 @@ public class Principal extends javax.swing.JFrame {
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
-                
-                    
-                    procesarConsultasRenapo();
-                
+
+        try {
+            procesarConsultasRenapo();
+        } catch (AxisFault ex) {
+            Logger.getLogger(Principal.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(Principal.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
     }//GEN-LAST:event_jButton3ActionPerformed
 
     /**
