@@ -84,7 +84,7 @@ public class Principal extends javax.swing.JFrame {
 
             try (Connection con = ConexionPool.getConnection(); PreparedStatement pstmt = con.prepareStatement(sqlInsert)) {
 
-                pstmt.setString(1, this.getSessionID(regreso));
+                /*pstmt.setString(1, this.getSessionID(regreso));
                 pstmt.setString(2, this.getCurp(regreso));
                 pstmt.setString(3, this.getNombres(regreso));
                 pstmt.setString(4, this.getApellido1(regreso));
@@ -93,7 +93,17 @@ public class Principal extends javax.swing.JFrame {
                 pstmt.setString(7, this.getMessage(regreso));
                 pstmt.setString(8, this.getTipoError(regreso));
                 pstmt.setString(9, this.getCodigoError(regreso));
-                pstmt.setString(10, this.getStatusCurp(regreso));
+                pstmt.setString(10, this.getStatusCurp(regreso));*/
+                pstmt.setString(1, this.getElement(regreso, "SessionID"));
+                pstmt.setString(2, this.getNode(regreso, "CURP"));
+                pstmt.setString(3, this.getNode(regreso, "nombres"));
+                pstmt.setString(4, this.getNode(regreso, "apellido1"));
+                pstmt.setString(5, this.getNode(regreso, "apellido2"));
+                pstmt.setString(6, this.getElement(regreso, "statusOper"));
+                pstmt.setString(7, this.getElement(regreso, "message"));
+                pstmt.setString(8, this.getElement(regreso, "TipoError"));
+                pstmt.setString(9, this.getElement(regreso, "CodigoError"));
+                pstmt.setString(10, this.getNode(regreso, "statusCurp"));
 
                 pstmt.executeUpdate(); // 🔥 inserta inmediato
 
@@ -147,20 +157,17 @@ public class Principal extends javax.swing.JFrame {
     }//finGenerarReporteTxt
 
     public void guardarConsultaEnTxt(String contenido) {
-        // 1. Crear el selector de archivos
+
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Seleccione dónde guardar el reporte");
 
-        // Opcional: Sugerir un nombre de archivo por defecto
         fileChooser.setSelectedFile(new File("reporte_consultas.txt"));
 
-        // 2. Mostrar la ventana de "Guardar"
         int seleccion = fileChooser.showSaveDialog(null);
 
         if (seleccion == JFileChooser.APPROVE_OPTION) {
             File archivo = fileChooser.getSelectedFile();
 
-            // 3. Escribir el archivo
             try (FileWriter fw = new FileWriter(archivo); PrintWriter pw = new PrintWriter(fw)) {
 
                 pw.print(contenido);
@@ -171,7 +178,7 @@ public class Principal extends javax.swing.JFrame {
                 javax.swing.JOptionPane.showMessageDialog(null, "Error al guardar el archivo: " + e.getMessage());
             }
         }
-    }
+    }//fin GuardarConsutaEnTxt
 
     public void leerExcel(String ruta) {
 
@@ -216,7 +223,7 @@ public class Principal extends javax.swing.JFrame {
                 System.out.println("correcto " + correctos + " incorrecto " + incorrectos);
 
                 if (incorrectos <= 0) {
-                    jTextArea1.setForeground(Color.GREEN);
+                    jTextArea1.setForeground(Color.decode("#27ae60"));
                     jTextArea1.append("Se procesaroon correctamente " + correctos + " CURPS");
                     jButton3.setEnabled(true);
 
@@ -300,6 +307,40 @@ public class Principal extends javax.swing.JFrame {
 
         return result;
     }//fin consultar curp
+
+    public String getElement(String xml, String elemento) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            Element root = doc.getDocumentElement();
+
+            return root.getAttribute(elemento);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }//fin metdo getElement
+
+    public String getNode(String xml, String nodo) {
+        try {
+            Document doc = DocumentBuilderFactory.newInstance()
+                    .newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            NodeList nodeList = doc.getElementsByTagName(nodo);
+
+            if (nodeList.getLength() > 0) {
+                return nodeList.item(0).getTextContent();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }//fin metdo getNode
 
     public String getSessionID(String xml) {
         try {
@@ -622,24 +663,22 @@ public class Principal extends javax.swing.JFrame {
         jPanel3Layout.setHorizontalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
-                .addContainerGap()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jLabel1)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGap(34, 34, 34)
                 .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, 219, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
+                .addGap(44, 44, 44)
                 .addComponent(jButton4)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGap(45, 45, 45))
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jButton4)
-                    .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(jLabel1)))
-                .addContainerGap(7, Short.MAX_VALUE))
+                    .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel1))
+                .addGap(0, 13, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
