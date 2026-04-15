@@ -113,22 +113,36 @@ public class Principal extends javax.swing.JFrame {
         StringBuilder sb = new StringBuilder();
 
         String sql = "SELECT * FROM consulta where fecha_consulta='" + fechaFormat + "'";
-        
-        System.out.println(sql);
 
         try (Connection con = ConexionPool.getConnection(); PreparedStatement pstmt = con.prepareStatement(sql); ResultSet rs = pstmt.executeQuery()) {
 
             while (rs.next()) {
-                sb.append("CURP: ").append(rs.getString("curp")).append(" | ");
-                sb.append("Nombre: ").append(rs.getString("nombres")).append(" | ");
-                sb.append("Status: ").append(rs.getString("status_oper")).append("\n");
-            }
+                sb.append("INSERT INTO public.consulta (session_id, curp, nombres, apellido1, apellido2, status_oper, message, tipo_error, codigo_error, "
+                        + " fecha_consulta, hora_consulta, status_curp) values('");
+                sb.append(rs.getString("session_id")).append("','");
+                sb.append(rs.getString("curp")).append("','");
+                sb.append(rs.getString("nombres")).append("','");
+                sb.append(rs.getString("apellido1")).append("','");
+                sb.append(rs.getString("apellido2")).append("','");
+                sb.append(rs.getString("status_oper")).append("','");
+                sb.append(rs.getString("message")).append("','");
+                sb.append(rs.getString("tipo_error")).append("','");
+                sb.append(rs.getString("codigo_error")).append("','");
+                sb.append(rs.getString("fecha_consulta")).append("','");
+                sb.append(rs.getString("hora_consulta")).append("','");
+                sb.append(rs.getString("status_curp")).append("');\n");
 
-            // Llamamos al método de guardar que creamos arriba
-            guardarConsultaEnTxt(sb.toString());
+            }
 
         } catch (SQLException e) {
             System.err.println("Error al obtener datos: " + e.getMessage());
+        }
+
+        if (sb.length() > 0) {
+            guardarConsultaEnTxt(sb.toString());
+        } else {
+            // Si entra aquí es que la consulta de verdad no trajo nada
+            javax.swing.JOptionPane.showMessageDialog(this, "No hay datos para: " + fechaFormat);
         }
     }//finGenerarReporteTxt
 
@@ -591,7 +605,7 @@ public class Principal extends javax.swing.JFrame {
 
         jPanel3.setBorder(javax.swing.BorderFactory.createTitledBorder("Reportes"));
 
-        jDateChooser1.setDateFormatString("yyyy-mm-dd");
+        jDateChooser1.setDateFormatString("yyyy-MM-dd");
 
         jLabel1.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
         jLabel1.setText("Elegir fecha");
@@ -693,6 +707,7 @@ public class Principal extends javax.swing.JFrame {
     }//GEN-LAST:event_jButton3ActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
+
         generarReporteTxt();
 
     }//GEN-LAST:event_jButton4ActionPerformed

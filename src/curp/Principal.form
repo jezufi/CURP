@@ -253,7 +253,7 @@
       <SubComponents>
         <Component class="com.toedter.calendar.JDateChooser" name="jDateChooser1">
           <Properties>
-            <Property name="dateFormatString" type="java.lang.String" value="yyyy-mm-dd"/>
+            <Property name="dateFormatString" type="java.lang.String" value="yyyy-MM-dd"/>
           </Properties>
         </Component>
         <Component class="javax.swing.JLabel" name="jLabel1">
